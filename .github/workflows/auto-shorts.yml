@@ -3,12 +3,11 @@ name: auto-shorts
 on:
   workflow_dispatch: {}
   schedule:
-    - cron: "0 */6 * * *" # runs every 6 hours
+    - cron: "0 */6 * * *"  # runs every 6 hours
 
 jobs:
   build-and-upload:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -18,34 +17,41 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Cache pip
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: pip-${{ runner.os }}-${{ hashFiles('**/requirements.txt') }}
-          restore-keys: |
-            pip-${{ runner.os }}-
-
       - name: Install FFmpeg
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
       - name: Install Python deps
         run: pip install -r requirements.txt
 
+      - name: Validate required secrets
+        run: |
+          if [ -z "${{ secrets.PEXELS_API_KEY }}" ]; then
+            echo "Error: Missing PEXELS_API_KEY secret"
+            exit 1
+          fi
+          if [ -z "${{ secrets.YOUTUBE_CLIENT_ID }}" ]; then
+            echo "Error: Missing YOUTUBE_CLIENT_ID secret"
+            exit 1
+          fi
+          if [ -z "${{ secrets.YOUTUBE_CLIENT_SECRET }}" ]; then
+            echo "Error: Missing YOUTUBE_CLIENT_SECRET secret"
+            exit 1
+          fi
+          if [ -z "${{ secrets.YOUTUBE_REFRESH_TOKEN }}" ]; then
+            echo "Error: Missing YOUTUBE_REFRESH_TOKEN secret"
+            exit 1
+          fi
+
       - name: Generate & Upload Short
         env:
-          # REQUIRED SECRETS
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
-
-          # OPTIONAL REPO VARIABLES (set in Actions → Variables)
           SHORTS_TITLE: ${{ vars.SHORTS_TITLE }}
           SHORTS_DESCRIPTION: ${{ vars.SHORTS_DESCRIPTION }}
           SHORTS_TEXT: ${{ vars.SHORTS_TEXT }}
           SHORTS_DURATION: ${{ vars.SHORTS_DURATION }}
           YOUTUBE_PRIVACY: ${{ vars.YOUTUBE_PRIVACY }}
         run: python pipeline.py
+
